@@ -1,0 +1,145 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+    # Without this the job's own altstore.json commit would retrigger the job.
+    paths-ignore: [altstore.json]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+env:
+  REPO_RAW: https://raw.githubusercontent.com/${{ github.repository }}/main
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # A build number that always climbs, so AltStore can tell an update apart
+      # from a rebuild of the same version.
+      - name: Derive version
+        id: ver
+        run: echo "version=1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build unsigned app
+        run: |
+          xcodebuild -project EyeofAngra.xcodeproj \
+            -scheme EyeofAngra \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            MARKETING_VERSION=${{ steps.ver.outputs.version }} \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            build
+
+      # An .ipa is just a zip with the .app inside a Payload/ directory.
+      - name: Package IPA
+        id: pkg
+        run: |
+          cd build/Build/Products/Release-iphoneos
+          mkdir -p Payload
+          cp -R EyeofAngra.app Payload/
+          zip -qry EyeofAngra.ipa Payload
+          echo "size=$(stat -f%z EyeofAngra.ipa)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: EyeofAngra ${{ steps.ver.outputs.version }}
+          body: |
+            Unsigned build of EyeofAngra for iOS.
+
+            **Install with AltStore (recommended).** Add this source once, then
+            install and update from the Browse tab:
+
+            `${{ env.REPO_RAW }}/altstore.json`
+
+            **Or sign it yourself** with 3uTools / Sideloadly using the `.ipa` below.
+
+            Apple's free signing lasts 7 days; AltStore refreshes it automatically
+            over Wi-Fi while AltServer is running on your computer.
+          files: build/Build/Products/Release-iphoneos/EyeofAngra.ipa
+
+      # Written after the release exists, so downloadURL always resolves.
+      - name: Update AltStore source
+        run: |
+          python3 - <<'PY'
+          import json, os, datetime
+
+          version  = "${{ steps.ver.outputs.version }}"
+          size     = int("${{ steps.pkg.outputs.size }}")
+          repo     = "${{ github.repository }}"
+          raw      = "${{ env.REPO_RAW }}"
+          download = f"https://github.com/{repo}/releases/download/v{version}/EyeofAngra.ipa"
+          today    = datetime.date.today().isoformat()
+
+          source = {
+            "name": "EyeofAngra",
+            "identifier": "com.eyeofangra.source",
+            "subtitle": "Emergency evidence recorder",
+            "description": "Open-source evidence capture. Everything stays on your device.",
+            "iconURL": f"{raw}/docs/icon.png",
+            "website": f"https://github.com/{repo}",
+            "tintColor": "D4AF37",
+            "apps": [{
+              "name": "EyeofAngra",
+              "bundleIdentifier": "com.eyeofangra.app",
+              "developerName": "EyeofAngra contributors",
+              "subtitle": "Emergency evidence recorder",
+              "localizedDescription": (
+                "Capture video, audio, and photos as evidence when your safety is at "
+                "risk. Recording only ever starts when you tap record, an on-screen "
+                "indicator shows whenever it is active, and everything stays in the "
+                "app's local storage. No cloud, no accounts, no tracking.\n\n"
+                "You are responsible for complying with the recording and consent "
+                "laws that apply to you."
+              ),
+              "iconURL": f"{raw}/docs/icon.png",
+              "tintColor": "D4AF37",
+              "category": "utilities",
+              "screenshotURLs": [],
+              "versions": [{
+                "version": version,
+                "buildVersion": "${{ github.run_number }}",
+                "date": today,
+                "size": size,
+                "downloadURL": download,
+                "localizedDescription": "See the GitHub release notes.",
+                "minOSVersion": "17.0"
+              }],
+              "appPermissions": {
+                "entitlements": [],
+                "privacy": [
+                  {"name": "NSCameraUsageDescription",
+                   "usageDescription": "Record evidence video and photos that you start yourself."},
+                  {"name": "NSMicrophoneUsageDescription",
+                   "usageDescription": "Record evidence audio that you start yourself."}
+                ]
+              }
+            }],
+            "news": []
+          }
+          json.dump(source, open("altstore.json", "w"), indent=2)
+          print("altstore.json ->", version, size, "bytes")
+          PY
+
+      - name: Commit AltStore source
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add altstore.json
+          # Nothing to do when the feed is unchanged.
+          git diff --staged --quiet || git commit -m "AltStore source: ${{ steps.ver.outputs.version }} [skip ci]"
+          git push

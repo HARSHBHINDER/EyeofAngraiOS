@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>EyeofAngra uses the camera to capture evidence video and photos that you explicitly start. Nothing is ever recorded without your action, and recordings never leave this device automatically.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>EyeofAngra uses the microphone to record evidence audio and video sound that you explicitly start. Nothing is ever recorded without your action, and recordings never leave this device automatically.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>UILaunchScreen</key>
+	<dict/>
+</dict>
+</plist>
