@@ -5,11 +5,15 @@ import Foundation
 enum RecordingStore {
     static let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 
+    private static let stampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyyMMdd_HHmmss"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
     static func newFileURL(prefix: String, ext: String) -> URL {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        let stamp = formatter.string(from: Date())
+        let stamp = stampFormatter.string(from: Date())
         var url = directory.appendingPathComponent("\(prefix)_\(stamp).\(ext)")
         // Two captures inside one second must never overwrite each other: evidence.
         var n = 2

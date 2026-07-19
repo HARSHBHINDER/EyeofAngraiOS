@@ -1,36 +1,33 @@
 import SwiftUI
 import AVKit
 
-extension URL: Identifiable {
-    public var id: String { absoluteString }
-}
-
-/// Plays both video and audio files. For audio, VideoPlayer just shows transport controls.
-struct PlayerSheet: View {
+/// Identity for sheet and cover presentation. A retroactive `URL: Identifiable`
+/// conformance would break the day Apple adds their own.
+struct MediaItem: Identifiable {
     let url: URL
-
-    var body: some View {
-        VideoPlayer(player: AVPlayer(url: url))
-            .ignoresSafeArea()
-    }
+    var id: String { url.absoluteString }
 }
 
-/// Latest recordings with tap-to-play and swipe-to-delete. Used by the Video and Audio tabs.
+/// Latest recordings with tap-to-play and swipe-to-delete. Used by the Video and
+/// Audio tabs — AVKit's VideoPlayer handles audio files too, showing transport
+/// controls instead of a picture.
 struct RecordingList: View {
     let prefix: String
     @Binding var recordings: [URL]
-    @State private var playing: URL?
+    @State private var playing: MediaItem?
 
     var body: some View {
         List {
             ForEach(recordings.prefix(10), id: \.self) { url in
-                Button(url.lastPathComponent) { playing = url }
+                Button(url.lastPathComponent) { playing = MediaItem(url: url) }
             }
             .onDelete { offsets in
                 offsets.forEach { RecordingStore.delete(recordings[$0]) }
                 recordings = RecordingStore.list(prefix: prefix)
             }
         }
-        .sheet(item: $playing) { PlayerSheet(url: $0) }
+        .sheet(item: $playing) {
+            VideoPlayer(player: AVPlayer(url: $0.url)).ignoresSafeArea()
+        }
     }
 }

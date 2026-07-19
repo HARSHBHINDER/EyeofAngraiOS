@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct VideoRecorderView: View {
-    @StateObject private var controller = VideoCaptureController()
+    @ObservedObject private var controller = CaptureController.shared
     @ObservedObject private var audioWitness = AudioRecorderController.shared
     @State private var recordings = RecordingStore.list(prefix: "VID")
 
@@ -51,9 +51,10 @@ struct VideoRecorderView: View {
         }
         .onAppear {
             recordings = RecordingStore.list(prefix: "VID")
-            if !audioWitness.isRecording { controller.startSession() }
+            if !audioWitness.isRecording { controller.start(mode: .video) }
         }
-        .onDisappear { controller.stopSession() }
+        // Left running while recording, so leaving the tab cannot cut the capture.
+        .onDisappear { if !controller.isRecording { controller.stop() } }
         .onChange(of: controller.isRecording) {
             if !controller.isRecording { recordings = RecordingStore.list(prefix: "VID") }
         }

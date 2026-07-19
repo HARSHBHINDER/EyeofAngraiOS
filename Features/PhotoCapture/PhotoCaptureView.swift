@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct PhotoCaptureView: View {
-    @StateObject private var controller = PhotoCaptureController()
+    @ObservedObject private var controller = CaptureController.shared
     @State private var photos = RecordingStore.list(prefix: "IMG")
     @State private var showConfirmation = false
-    @State private var previewing: URL?
+    @State private var previewing: MediaItem?
 
     private let columns = [GridItem(.adaptive(minimum: 70))]
 
@@ -45,7 +45,7 @@ struct PhotoCaptureView: View {
                                 .scaledToFill()
                                 .frame(width: 70, height: 70)
                                 .clipped()
-                                .onTapGesture { previewing = url }
+                                .onTapGesture { previewing = MediaItem(url: url) }
                         }
                     }
                 }
@@ -55,18 +55,18 @@ struct PhotoCaptureView: View {
         }
         .onAppear {
             photos = RecordingStore.list(prefix: "IMG")
-            controller.startSession()
+            controller.start(mode: .photo)
         }
-        .onDisappear { controller.stopSession() }
+        .onDisappear { controller.stop() }
         .onChange(of: controller.lastSavedAt) {
             photos = RecordingStore.list(prefix: "IMG")
             showConfirmation = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { showConfirmation = false }
         }
-        .fullScreenCover(item: $previewing) { url in
+        .fullScreenCover(item: $previewing) { item in
             ZStack {
                 Color.black.ignoresSafeArea()
-                if let image = UIImage(contentsOfFile: url.path) {
+                if let image = UIImage(contentsOfFile: item.url.path) {
                     Image(uiImage: image).resizable().scaledToFit()
                 }
             }
@@ -74,3 +74,4 @@ struct PhotoCaptureView: View {
         }
     }
 }
+
