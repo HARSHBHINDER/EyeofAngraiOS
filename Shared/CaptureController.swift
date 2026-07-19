@@ -71,7 +71,9 @@ final class CaptureController: NSObject, ObservableObject,
 
     private func configure(for mode: Mode) {
         session.beginConfiguration()
-        session.sessionPreset = mode == .video ? .high : .photo
+        // Video honours the quality chosen in Settings; photo always uses .photo.
+        let wantsMedium = UserDefaults.standard.string(forKey: "videoQuality") == "Medium"
+        session.sessionPreset = mode == .photo ? .photo : (wantsMedium ? .medium : .high)
 
         // Rebuilt each time: the mic belongs to video only, and the two outputs
         // cannot both hold the session.

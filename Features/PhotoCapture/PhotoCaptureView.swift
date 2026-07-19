@@ -11,20 +11,21 @@ struct PhotoCaptureView: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                Color.black
+                Angra.background
                 VStack(spacing: 12) {
                     Image(systemName: "camera")
                         .font(.title)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(Angra.gold)
                     Text("Tap anywhere to take an evidence photo")
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(Angra.textSecondary)
                 }
                 if showConfirmation {
-                    Text("Photo captured")
-                        .font(.headline)
-                        .foregroundStyle(.black)
-                        .padding(10)
-                        .background(.white, in: Capsule())
+                    Label("Photo saved", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Angra.textPrimary)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(Angra.success, in: Capsule())
+                        .transition(.opacity)
                 }
             }
             .contentShape(Rectangle())
@@ -32,7 +33,8 @@ struct PhotoCaptureView: View {
             .frame(maxHeight: .infinity)
 
             if let error = controller.errorMessage {
-                Text(error).foregroundStyle(.red).padding(.horizontal)
+                Text(error).font(.footnote).foregroundStyle(Angra.record)
+                    .multilineTextAlignment(.center).padding(.horizontal)
             }
 
             ScrollView {

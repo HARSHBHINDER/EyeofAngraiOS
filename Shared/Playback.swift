@@ -8,22 +8,28 @@ struct MediaItem: Identifiable {
     var id: String { url.absoluteString }
 }
 
-/// The one large capture control, shared by the Video and Audio tabs.
+/// The one capture control, shared by the Video and Audio tabs.
+/// The centre morphs circle → rounded square when active, so recording state is
+/// carried by shape as well as colour.
 struct RecordButton: View {
-    let title: String
     let isActive: Bool
+    var isEnabled: Bool = true
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.title.bold())
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(isActive ? Color.gray : Color.red,
-                            in: RoundedRectangle(cornerRadius: 12))
-                .foregroundStyle(.white)
+            ZStack {
+                Circle()
+                    .strokeBorder(isEnabled ? Angra.textPrimary : Angra.textSecondary, lineWidth: 3)
+                    .frame(width: 78, height: 78)
+                RoundedRectangle(cornerRadius: isActive ? 6 : 30)
+                    .fill(isEnabled ? Angra.record : Angra.textSecondary)
+                    .frame(width: isActive ? 30 : 60, height: isActive ? 30 : 60)
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
         }
+        .disabled(!isEnabled)
+        .accessibilityLabel(isActive ? "Stop recording" : "Start recording")
     }
 }
 

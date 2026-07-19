@@ -35,4 +35,24 @@ enum RecordingStore {
     static func delete(_ url: URL) {
         try? FileManager.default.removeItem(at: url)
     }
+
+    static func size(of url: URL) -> Int64 {
+        (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
+    }
+
+    /// Total bytes this app has captured.
+    static var usedBytes: Int64 {
+        let all = (try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        return all.reduce(0) { $0 + size(of: $1) }
+    }
+
+    static var freeBytes: Int64 {
+        (try? directory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            .volumeAvailableCapacityForImportantUsage) ?? 0
+    }
+
+    static func format(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
 }
