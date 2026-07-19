@@ -33,15 +33,9 @@ struct VideoRecorderView: View {
                 Text(error).foregroundStyle(.red).padding(.horizontal)
             }
 
-            Button {
+            RecordButton(title: controller.isRecording ? "Stop" : "Record",
+                         isActive: controller.isRecording) {
                 controller.isRecording ? controller.stopRecording() : controller.startRecording()
-            } label: {
-                Text(controller.isRecording ? "Stop" : "Record")
-                    .font(.title.bold())
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(controller.isRecording ? Color.gray : Color.red, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.white)
             }
             .padding()
             .disabled(audioWitness.isRecording)

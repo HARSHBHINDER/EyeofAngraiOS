@@ -12,15 +12,12 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.eyeofangra.app
-        PRODUCT_NAME: EyeofAngra
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Read by Info.plist. CI overrides both per run; these are the local default.
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         # Unsigned on purpose. AltStore re-signs with each user's own Apple ID at
-        # install time, and 3uTools signs your personal copy. CI has no certificate
-        # and needs none.
+        # install time, and 3uTools signs your personal copy.
         CODE_SIGNING_ALLOWED: NO
-        CODE_SIGNING_REQUIRED: NO
-        CODE_SIGN_IDENTITY: ""

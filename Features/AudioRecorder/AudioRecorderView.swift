@@ -24,15 +24,9 @@ struct AudioRecorderView: View {
                 Text(error).foregroundStyle(.red).padding(.horizontal)
             }
 
-            Button {
+            RecordButton(title: controller.isRecording ? "Stop" : "Start",
+                         isActive: controller.isRecording) {
                 controller.isRecording ? controller.stop() : controller.start()
-            } label: {
-                Text(controller.isRecording ? "Stop" : "Start")
-                    .font(.title.bold())
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(controller.isRecording ? Color.gray : Color.red, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.white)
             }
             .padding(.horizontal)
 

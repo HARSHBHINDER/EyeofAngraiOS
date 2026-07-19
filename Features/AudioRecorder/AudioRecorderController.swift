@@ -38,6 +38,9 @@ final class AudioRecorderController: ObservableObject {
     }
 
     private func beginRecording() {
+        // The permission prompt is async, so two quick taps can both land here.
+        // A second recorder would orphan the first one's file mid-write.
+        guard recorder == nil else { return }
         do {
             // .playAndRecord + the "audio" background mode keeps this running when the app is backgrounded.
             let session = AVAudioSession.sharedInstance()

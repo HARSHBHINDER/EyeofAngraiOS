@@ -8,6 +8,25 @@ struct MediaItem: Identifiable {
     var id: String { url.absoluteString }
 }
 
+/// The one large capture control, shared by the Video and Audio tabs.
+struct RecordButton: View {
+    let title: String
+    let isActive: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.title.bold())
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(isActive ? Color.gray : Color.red,
+                            in: RoundedRectangle(cornerRadius: 12))
+                .foregroundStyle(.white)
+        }
+    }
+}
+
 /// Latest recordings with tap-to-play and swipe-to-delete. Used by the Video and
 /// Audio tabs — AVKit's VideoPlayer handles audio files too, showing transport
 /// controls instead of a picture.
