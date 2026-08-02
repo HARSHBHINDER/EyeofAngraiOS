@@ -19,11 +19,11 @@
       "screenshotURLs": [],
       "versions": [
         {
-          "version": "1.0.2",
-          "buildVersion": "2",
-          "date": "2026-07-19",
-          "size": 988007,
-          "downloadURL": "https://github.com/HARSHBHINDER/EyeofAngraiOS/releases/download/v1.0.2/EyeofAngra.ipa",
+          "version": "1.0.3",
+          "buildVersion": "3",
+          "date": "2026-08-02",
+          "size": 988011,
+          "downloadURL": "https://github.com/HARSHBHINDER/EyeofAngraiOS/releases/download/v1.0.3/EyeofAngra.ipa",
           "localizedDescription": "See the GitHub release notes.",
           "minOSVersion": "17.0"
         }
