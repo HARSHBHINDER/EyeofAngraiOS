@@ -3,8 +3,8 @@
   "identifier": "com.eyeofangra.source",
   "subtitle": "Emergency evidence recorder",
   "description": "Open-source evidence capture. Everything stays on your device.",
-  "iconURL": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngra-iOS/main/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
-  "website": "https://github.com/HARSHBHINDER/EyeofAngra-iOS",
+  "iconURL": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngraiOS/main/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
+  "website": "https://github.com/HARSHBHINDER/EyeofAngraiOS",
   "tintColor": "D4AF37",
   "apps": [
     {
@@ -13,17 +13,17 @@
       "developerName": "EyeofAngra contributors",
       "subtitle": "Emergency evidence recorder",
       "localizedDescription": "Capture video, audio, and photos as evidence when your safety is at risk. Recording only ever starts when you tap record, an on-screen indicator shows whenever it is active, and everything stays in the app's local storage. No cloud, no accounts, no tracking.\n\nYou are responsible for complying with the recording and consent laws that apply to you.",
-      "iconURL": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngra-iOS/main/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
+      "iconURL": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngraiOS/main/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
       "tintColor": "D4AF37",
       "category": "utilities",
       "screenshotURLs": [],
       "versions": [
         {
-          "version": "1.0.3",
-          "buildVersion": "3",
-          "date": "2026-08-02",
+          "version": "1.0.4",
+          "buildVersion": "4",
+          "date": "2026-10-04",
           "size": 988011,
-          "downloadURL": "https://github.com/HARSHBHINDER/EyeofAngraiOS/releases/download/v1.0.3/EyeofAngra.ipa",
+          "downloadURL": "https://github.com/HARSHBHINDER/EyeofAngraiOS/releases/download/v1.0.4/EyeofAngra.ipa",
           "localizedDescription": "See the GitHub release notes.",
           "minOSVersion": "17.0"
         }
