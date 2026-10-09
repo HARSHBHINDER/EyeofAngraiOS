@@ -21,3 +21,25 @@ targets:
         # Unsigned on purpose. AltStore re-signs with each user's own Apple ID at
         # install time, and 3uTools signs your personal copy.
         CODE_SIGNING_ALLOWED: NO
+      dependencies:
+        - target: EyeofAngraWidget
+          embed: true
+  EyeofAngraWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Widget]
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: EyeofAngra
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.eyeofangra.app.widget
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGNING_ALLOWED: NO

@@ -1,0 +1,33 @@
+{
+  "repo": "HARSHBHINDER/EyeofAngra-iOS",
+  "release_asset": "EyeofAngra.ipa",
+  "altstore_feed": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngra-iOS/main/altstore.json",
+  "versions": [
+    {
+      "version": "1.1",
+      "date": "2026-10-09",
+      "release_tag": "latest",
+      "changes": [
+        "Home-screen and lock-screen widgets: tap to deeplink straight into Video or Audio and arm capture automatically.",
+        "Fixed: changing video quality in Settings now applies immediately, not only after switching tabs.",
+        "Premium interface pass: gold hairline cards, translucent chrome, spring-driven capture control with haptics, serif timers.",
+        "New app icon."
+      ]
+    },
+    {
+      "version": "1.0",
+      "date": "2026-08-17",
+      "release_tag": "latest",
+      "changes": [
+        "Five destinations: Video, Audio, Photo, Vault, and Settings.",
+        "Stealth capture: video and photo black the screen out and drop the backlight to zero while recording, so the phone reads as idle. Tap anywhere to stop.",
+        "One shared capture session across Video and Photo, because iOS grants the camera to a single session at a time.",
+        "Audio-only capture keeps running with the screen locked, via the audio background mode.",
+        "Capture quality: 4K, 1080p, or 720p, applied live with an automatic fallback on devices that cannot reach the chosen preset.",
+        "Home-screen widget (Video and Audio) and a lock-screen Video widget, opening straight into the tab and arming capture.",
+        "Premium interface: serif gold wordmark, translucent chrome with gold hairlines, spring-driven capture control with haptics, and a gold-washed timer.",
+        "Everything is written to the device only. No account, no cloud, no analytics."
+      ]
+    }
+  ]
+}

@@ -1,7 +1,5 @@
 import Foundation
 
-/// Names, lists, and deletes recording files in the app's Documents directory.
-/// Filenames sort chronologically because of the yyyyMMdd_HHmmss stamp.
 enum RecordingStore {
     static let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 
@@ -24,7 +22,6 @@ enum RecordingStore {
         return url
     }
 
-    /// Newest first, thanks to the timestamp in the name.
     static func list(prefix: String) -> [URL] {
         let all = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         return all
@@ -40,7 +37,6 @@ enum RecordingStore {
         (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) } ?? 0
     }
 
-    /// Total bytes this app has captured.
     static var usedBytes: Int64 {
         let all = (try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: [.fileSizeKey])) ?? []

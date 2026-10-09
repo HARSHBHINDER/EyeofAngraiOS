@@ -18,39 +18,43 @@ struct VaultView: View {
     @State private var files: [URL] = []
     @State private var playing: MediaItem?
     @State private var pendingDelete: MediaItem?
+    @Namespace private var chipNamespace
 
-    private let columns = [GridItem(.adaptive(minimum: 104), spacing: 10)]
+    private let columns = [GridItem(.adaptive(minimum: 108), spacing: 12)]
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(files, id: \.self) { url in
-                        Tile(url: url)
-                            .onTapGesture { playing = MediaItem(url: url) }
-                            .contextMenu {
-                                Button("Delete", systemImage: "trash", role: .destructive) {
-                                    pendingDelete = MediaItem(url: url)
-                                }
-                            }
-                    }
-                }
-                .padding(12)
-
                 if files.isEmpty {
-                    ContentUnavailableView("Nothing captured yet",
-                                           systemImage: "lock",
-                                           description: Text("Recordings you make appear here, stored only on this device."))
-                        .padding(.top, 60)
+                    ContentUnavailableView {
+                        Label("Nothing captured yet", systemImage: "lock.shield")
+                    } description: {
+                        Text("Recordings you make appear here, held only on this device.")
+                    }
+                    .padding(.top, 72)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(files, id: \.self) { url in
+                            Tile(url: url)
+                                .onTapGesture { playing = MediaItem(url: url) }
+                                .contextMenu {
+                                    Button("Delete", systemImage: "trash", role: .destructive) {
+                                        pendingDelete = MediaItem(url: url)
+                                    }
+                                }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
                 }
             }
-            .background(Angra.background)
+            .background(Angra.background.ignoresSafeArea())
             .navigationTitle("Vault")
             .safeAreaInset(edge: .top) { filterBar }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Text(RecordingStore.format(RecordingStore.usedBytes))
-                        .font(.footnote)
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(Angra.textSecondary)
                 }
             }
@@ -78,22 +82,43 @@ struct VaultView: View {
         }
     }
 
+    /// Floating chrome over the grid: translucent, with the selection sliding
+    /// between chips rather than blinking from one to the next.
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(Filter.allCases, id: \.self) { option in
+                    let selected = filter == option
                     Text(option.rawValue)
-                        .font(.subheadline.weight(filter == option ? .semibold : .regular))
-                        .padding(.horizontal, 14).padding(.vertical, 7)
-                        .background(filter == option ? Angra.gold : Angra.surfaceAlt,
-                                    in: Capsule())
-                        .foregroundStyle(filter == option ? Angra.background : Angra.textSecondary)
-                        .onTapGesture { filter = option }
+                        .font(.subheadline.weight(selected ? .semibold : .regular))
+                        .foregroundStyle(selected ? Angra.background : Angra.textSecondary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background {
+                            if selected {
+                                Capsule()
+                                    .fill(Angra.goldGradient)
+                                    .matchedGeometryEffect(id: "chip", in: chipNamespace)
+                            } else {
+                                Capsule().fill(Angra.surfaceAlt)
+                            }
+                        }
+                        .contentShape(Capsule())
+                        .onTapGesture {
+                            withAnimation(Angra.spring) { filter = option }
+                        }
                 }
             }
-            .padding(.horizontal, 12).padding(.bottom, 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
-        .background(Angra.background)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .bottom) {
+            // A soft edge where floating chrome meets content, not a hard rule.
+            LinearGradient(colors: [Angra.gold.opacity(0.14), .clear],
+                           startPoint: .top, endPoint: .bottom)
+                .frame(height: 1)
+        }
     }
 
     private func reload() {
@@ -103,32 +128,44 @@ struct VaultView: View {
     }
 }
 
-/// Photos show themselves; audio and video get a symbol, which avoids decoding a
-/// frame for every tile.
+/// Photos show themselves; audio and video get a mark, which avoids decoding a
+/// frame for every tile. A scrim keeps the size legible over any image.
 private struct Tile: View {
     let url: URL
 
+    private var isPhoto: Bool { url.pathExtension == "jpg" }
+
     var body: some View {
         ZStack {
-            if url.pathExtension == "jpg", let image = UIImage(contentsOfFile: url.path) {
+            if isPhoto, let image = UIImage(contentsOfFile: url.path) {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
-                Angra.surface
+                Angra.cardGradient
                 Image(systemName: url.pathExtension == "mp4" ? "video.fill" : "waveform")
-                    .font(.title2)
-                    .foregroundStyle(Angra.gold)
+                    .font(.title3)
+                    .foregroundStyle(Angra.goldGradient)
             }
         }
-        .frame(height: 104)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .frame(height: 108)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: Angra.radiusTile, style: .continuous))
+        .overlay(alignment: .bottom) {
+            LinearGradient(colors: [.clear, .black.opacity(0.55)],
+                           startPoint: .center, endPoint: .bottom)
+                .frame(height: 46)
+                .allowsHitTesting(false)
+        }
         .overlay(alignment: .bottomLeading) {
             Text(RecordingStore.format(RecordingStore.size(of: url)))
-                .font(.caption2)
+                .font(.caption2.weight(.medium).monospacedDigit())
                 .foregroundStyle(Angra.textPrimary)
-                .padding(4)
-                .background(.black.opacity(0.55), in: Capsule())
-                .padding(6)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: Angra.radiusTile, style: .continuous)
+                .strokeBorder(Angra.gold.opacity(0.16), lineWidth: Angra.hairline)
+        )
     }
 }
 

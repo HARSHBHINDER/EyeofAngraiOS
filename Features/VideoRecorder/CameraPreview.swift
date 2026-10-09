@@ -1,7 +1,6 @@
 import SwiftUI
 import AVFoundation
 
-/// Live camera viewfinder for the Video tab.
 struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
 

@@ -1,10 +1,6 @@
 import AVFoundation
 
-/// Owns the app's single AVCaptureSession.
-///
-/// iOS gives one session access to the camera at a time, so the Video and Photo
-/// tabs share this one and swap its output when they appear. Two separate sessions
-/// race for the camera and one of them silently fails to start.
+// Single AVCaptureSession shared by Video and Photo tabs — iOS allows only one.
 final class CaptureController: NSObject, ObservableObject,
                                AVCaptureFileOutputRecordingDelegate,
                                AVCapturePhotoCaptureDelegate {
@@ -17,6 +13,9 @@ final class CaptureController: NSObject, ObservableObject,
     @Published var lastSavedAt: Date?
     @Published var errorMessage: String?
 
+    /// Set by a widget deeplink: begin recording as soon as the session is live.
+    var pendingAutoStart = false
+
     let session = AVCaptureSession()
     private let movieOutput = AVCaptureMovieFileOutput()
     private let photoOutput = AVCapturePhotoOutput()
@@ -25,7 +24,13 @@ final class CaptureController: NSObject, ObservableObject,
     /// Requests only what the mode needs, then configures the session for it.
     func start(mode: Mode) {
         if self.mode == mode {
-            run { self.session.startRunning() }
+            // Pick up a quality change made in Settings since the session was built.
+            if mode == .video, session.sessionPreset != videoPreset() {
+                session.beginConfiguration()
+                session.sessionPreset = videoPreset()
+                session.commitConfiguration()
+            }
+            run { self.session.startRunning(); self.fireAutoStart() }
             return
         }
         AVCaptureDevice.requestAccess(for: .video) { cameraOK in
@@ -72,8 +77,7 @@ final class CaptureController: NSObject, ObservableObject,
     private func configure(for mode: Mode) {
         session.beginConfiguration()
         // Video honours the quality chosen in Settings; photo always uses .photo.
-        let wantsMedium = UserDefaults.standard.string(forKey: "videoQuality") == "Medium"
-        session.sessionPreset = mode == .photo ? .photo : (wantsMedium ? .medium : .high)
+        session.sessionPreset = mode == .photo ? .photo : videoPreset()
 
         // Rebuilt each time: the mic belongs to video only, and the two outputs
         // cannot both hold the session.
@@ -88,7 +92,28 @@ final class CaptureController: NSObject, ObservableObject,
 
         session.commitConfiguration()
         self.mode = mode
-        run { self.session.startRunning() }
+        run { self.session.startRunning(); self.fireAutoStart() }
+    }
+
+    /// After a widget deeplink, start recording once the session is live.
+    private func fireAutoStart() {
+        guard pendingAutoStart else { return }
+        DispatchQueue.main.async {
+            self.pendingAutoStart = false
+            self.startRecording()
+        }
+    }
+
+    /// Maps the Settings quality string to a preset, falling back to 1080p if the
+    /// device can't do the chosen one (older phones have no 4K).
+    private func videoPreset() -> AVCaptureSession.Preset {
+        let preset: AVCaptureSession.Preset
+        switch UserDefaults.standard.string(forKey: "videoQuality") {
+        case "4K": preset = .hd4K3840x2160
+        case "720p": preset = .hd1280x720
+        default: preset = .hd1920x1080
+        }
+        return session.canSetSessionPreset(preset) ? preset : .hd1920x1080
     }
 
     private func addInput(_ type: AVMediaType) {
