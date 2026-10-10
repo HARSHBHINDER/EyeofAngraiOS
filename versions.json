@@ -4,9 +4,18 @@
   "altstore_feed": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngraiOS/main/altstore.json",
   "versions": [
     {
-      "version": "1.3",
+      "version": "1.4",
       "date": "2026-10-10",
       "release_tag": "latest",
+      "changes": [
+        "Auto-rotation removed: the app stays in portrait.",
+        "Recordings and photos still come out the right way round: each capture is stamped with how the phone was physically held."
+      ]
+    },
+    {
+      "version": "1.3",
+      "date": "2026-10-10",
+      "release_tag": null,
       "changes": [
         "Select mode in the Vault: tap Select, tick any mix of videos, photos and audio, or use All.",
         "Batch actions: Save to Photos, Move to Photos, Export through the share sheet (Save to Files, AirDrop, any app, audio included) and Delete.",
