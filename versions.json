@@ -4,9 +4,19 @@
   "altstore_feed": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngraiOS/main/altstore.json",
   "versions": [
     {
-      "version": "1.2",
+      "version": "1.3",
       "date": "2026-10-10",
       "release_tag": "latest",
+      "changes": [
+        "Select mode in the Vault: tap Select, tick any mix of videos, photos and audio, or use All.",
+        "Batch actions: Save to Photos, Move to Photos, Export through the share sheet (Save to Files, AirDrop, any app, audio included) and Delete.",
+        "Move to Photos hands each file to Photos instead of copying it, so multi-GB videos move with no duplicate and no load on the phone."
+      ]
+    },
+    {
+      "version": "1.2",
+      "date": "2026-10-10",
+      "release_tag": null,
       "changes": [
         "Records the way the iPhone Camera app does: HEVC video in .mov and HEIC photos, falling back to H.264 / JPEG on older hardware.",
         "Save to Photos: hold any video or photo in the Vault and it goes straight into the Photos library, playable there like a Camera recording.",

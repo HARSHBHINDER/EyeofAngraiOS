@@ -20,6 +20,10 @@ struct VaultView: View {
     @State private var playing: MediaItem?
     @State private var pendingDelete: MediaItem?
     @State private var notice: String?
+    // Selection mode: tap toggles, the bottom bar acts on every ticked item.
+    @State private var selecting = false
+    @State private var selected: Set<URL> = []
+    @State private var confirmBatchDelete = false
     @Namespace private var chipNamespace
 
     private let columns = [GridItem(.adaptive(minimum: 108), spacing: 12)]
@@ -38,11 +42,26 @@ struct VaultView: View {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(files, id: \.self) { url in
                             Tile(url: url)
-                                .onTapGesture { playing = MediaItem(url: url) }
+                                .overlay(alignment: .topTrailing) {
+                                    if selecting { SelectionTick(on: selected.contains(url)) }
+                                }
+                                .overlay {
+                                    if selecting && selected.contains(url) {
+                                        RoundedRectangle(cornerRadius: Angra.radiusTile, style: .continuous)
+                                            .strokeBorder(Angra.goldGradient, lineWidth: 2)
+                                    }
+                                }
+                                .onTapGesture {
+                                    if selecting {
+                                        if selected.contains(url) { selected.remove(url) } else { selected.insert(url) }
+                                    } else {
+                                        playing = MediaItem(url: url)
+                                    }
+                                }
                                 .contextMenu {
                                     if url.isPhoto || url.isVideo {
                                         Button("Save to Photos", systemImage: "square.and.arrow.down") {
-                                            Task { notice = await PhotosSaver.save(url) }
+                                            Task { notice = await PhotosSaver.save([url], move: false) }
                                         }
                                     }
                                     Button("Delete", systemImage: "trash", role: .destructive) {
@@ -56,8 +75,9 @@ struct VaultView: View {
                 }
             }
             .background(Angra.background.ignoresSafeArea())
-            .navigationTitle("Vault")
+            .navigationTitle(selecting ? "\(selected.count) selected" : "Vault")
             .safeAreaInset(edge: .top) { filterBar }
+            .safeAreaInset(edge: .bottom) { if selecting { actionBar } }
             .overlay(alignment: .bottom) {
                 if let notice {
                     Text(notice)
@@ -75,10 +95,25 @@ struct VaultView: View {
             }
             .animation(Angra.spring, value: notice)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if !files.isEmpty {
+                        Button(selecting ? "Cancel" : "Select") {
+                            withAnimation(Angra.spring) { selecting.toggle(); selected = [] }
+                        }
+                        .tint(Angra.gold)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Text(RecordingStore.format(RecordingStore.usedBytes))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(Angra.textSecondary)
+                    if selecting {
+                        Button(selected.count == files.count ? "None" : "All") {
+                            selected = selected.count == files.count ? [] : Set(files)
+                        }
+                        .tint(Angra.gold)
+                    } else {
+                        Text(RecordingStore.format(RecordingStore.usedBytes))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(Angra.textSecondary)
+                    }
                 }
             }
         }
@@ -91,6 +126,16 @@ struct VaultView: View {
                 VideoPlayer(player: AVPlayer(url: item.url)).ignoresSafeArea()
             }
         }
+        .confirmationDialog("Delete \(selected.count) \(selected.count == 1 ? "item" : "items")?",
+                            isPresented: $confirmBatchDelete,
+                            titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                selected.forEach(RecordingStore.delete)
+                endSelection()
+            }
+        } message: {
+            Text("They will be permanently removed from this device. Evidence cannot be recovered.")
+        }
         .confirmationDialog("Delete this recording?",
                             isPresented: .constant(pendingDelete != nil),
                             titleVisibility: .visible) {
@@ -102,6 +147,44 @@ struct VaultView: View {
             Button("Cancel", role: .cancel) { pendingDelete = nil }
         } message: {
             Text("This permanently removes it from the device. Evidence cannot be recovered.")
+        }
+    }
+
+    private func endSelection() {
+        withAnimation(Angra.spring) { selecting = false; selected = [] }
+        reload()
+    }
+
+    /// Batch actions. Photos takes video and photos; Export opens the share sheet
+    /// (Save to Files, AirDrop, any app) and carries every type, audio included.
+    private var actionBar: some View {
+        let chosen = files.filter(selected.contains)
+        let enabled = !chosen.isEmpty
+        return HStack {
+            Button {
+                Task { notice = await PhotosSaver.save(chosen, move: false); endSelection() }
+            } label: { Label("Save", systemImage: "square.and.arrow.down") }
+            Spacer()
+            Button {
+                Task { notice = await PhotosSaver.save(chosen, move: true); endSelection() }
+            } label: { Label("Move", systemImage: "photo.on.rectangle") }
+            Spacer()
+            ShareLink(items: chosen) { Label("Export", systemImage: "square.and.arrow.up") }
+            Spacer()
+            Button(role: .destructive) { confirmBatchDelete = true } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .tint(Angra.record)
+        }
+        .labelStyle(.titleAndIcon)
+        .font(.footnote.weight(.medium))
+        .tint(Angra.gold)
+        .disabled(!enabled)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Angra.gold.opacity(0.18)).frame(height: Angra.hairline)
         }
     }
 
@@ -240,23 +323,55 @@ private struct Tile: View {
     }
 }
 
-/// Copies a capture into the user's Photos library. Recordings are already HEVC
-/// .mov / HEIC — the Camera app's own formats — so Photos plays them as-is.
+/// Gold filled tick when chosen, an empty ring otherwise.
+private struct SelectionTick: View {
+    let on: Bool
+    var body: some View {
+        ZStack {
+            Circle().fill(on ? AnyShapeStyle(Angra.goldGradient) : AnyShapeStyle(.black.opacity(0.4)))
+            Circle().strokeBorder(Angra.textPrimary, lineWidth: 1.5)
+            if on {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Angra.background)
+            }
+        }
+        .frame(width: 22, height: 22)
+        .padding(6)
+    }
+}
+
+/// Puts captures into the user's Photos library. Recordings are already HEVC .mov
+/// and HEIC, the Camera app's own formats, so Photos plays them as-is.
 private enum PhotosSaver {
-    static func save(_ url: URL) async -> String {
+    /// Move hands the file itself to Photos instead of copying it, so a multi-GB
+    /// video moves without duplicating it or loading the phone.
+    static func save(_ urls: [URL], move: Bool) async -> String {
+        let media = urls.filter { $0.isPhoto || $0.isVideo }
+        let audio = urls.count - media.count
+        guard !media.isEmpty else { return "Photos cannot hold audio. Use Export instead." }
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
             return "Allow EyeofAngra to add to Photos in Settings"
         }
-        do {
-            try await PHPhotoLibrary.shared().performChanges {
-                let request = PHAssetCreationRequest.forAsset()
-                request.addResource(with: url.isVideo ? .video : .photo, fileURL: url, options: nil)
+        var saved = 0
+        for url in media {
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
+                    let options = PHAssetResourceCreationOptions()
+                    options.shouldMoveFile = move
+                    PHAssetCreationRequest.forAsset()
+                        .addResource(with: url.isVideo ? .video : .photo, fileURL: url, options: options)
+                }
+                saved += 1
+            } catch {
+                continue
             }
-            return "Saved to Photos"
-        } catch {
-            return "Could not save to Photos"
         }
+        var message = "\(move ? "Moved" : "Saved") \(saved) to Photos"
+        if saved < media.count { message += " · \(media.count - saved) failed" }
+        if audio > 0 { message += " · audio skipped, use Export" }
+        return message
     }
 }
 
