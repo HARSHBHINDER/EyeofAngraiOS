@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import Photos
 
 struct VaultView: View {
     private enum Filter: String, CaseIterable {
@@ -18,6 +19,7 @@ struct VaultView: View {
     @State private var files: [URL] = []
     @State private var playing: MediaItem?
     @State private var pendingDelete: MediaItem?
+    @State private var notice: String?
     @Namespace private var chipNamespace
 
     private let columns = [GridItem(.adaptive(minimum: 108), spacing: 12)]
@@ -38,6 +40,11 @@ struct VaultView: View {
                             Tile(url: url)
                                 .onTapGesture { playing = MediaItem(url: url) }
                                 .contextMenu {
+                                    if url.isPhoto || url.isVideo {
+                                        Button("Save to Photos", systemImage: "square.and.arrow.down") {
+                                            Task { notice = await PhotosSaver.save(url) }
+                                        }
+                                    }
                                     Button("Delete", systemImage: "trash", role: .destructive) {
                                         pendingDelete = MediaItem(url: url)
                                     }
@@ -51,6 +58,22 @@ struct VaultView: View {
             .background(Angra.background.ignoresSafeArea())
             .navigationTitle("Vault")
             .safeAreaInset(edge: .top) { filterBar }
+            .overlay(alignment: .bottom) {
+                if let notice {
+                    Text(notice)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Angra.background)
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(Angra.goldGradient, in: Capsule())
+                        .padding(.bottom, 20)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .task {
+                            try? await Task.sleep(for: .seconds(2.5))
+                            withAnimation(Angra.spring) { self.notice = nil }
+                        }
+                }
+            }
+            .animation(Angra.spring, value: notice)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Text(RecordingStore.format(RecordingStore.usedBytes))
@@ -62,7 +85,7 @@ struct VaultView: View {
         .onAppear(perform: reload)
         .onChange(of: filter) { reload() }
         .sheet(item: $playing) { item in
-            if item.url.pathExtension == "jpg" {
+            if item.url.isPhoto {
                 ImageViewer(url: item.url)
             } else {
                 VideoPlayer(player: AVPlayer(url: item.url)).ignoresSafeArea()
@@ -128,20 +151,20 @@ struct VaultView: View {
     }
 }
 
-/// Photos show themselves; audio and video get a mark, which avoids decoding a
-/// frame for every tile. A scrim keeps the size legible over any image.
+/// Photos and videos show a real frame; audio gets a gold mark. Length and capture
+/// time ride on a scrim so the tile says what it is at a glance.
 private struct Tile: View {
     let url: URL
-
-    private var isPhoto: Bool { url.pathExtension == "jpg" }
+    @State private var thumb: UIImage?
+    @State private var duration: Double?
 
     var body: some View {
         ZStack {
-            if isPhoto, let image = UIImage(contentsOfFile: url.path) {
-                Image(uiImage: image).resizable().scaledToFill()
+            if let thumb {
+                Image(uiImage: thumb).resizable().scaledToFill()
             } else {
                 Angra.cardGradient
-                Image(systemName: url.pathExtension == "mp4" ? "video.fill" : "waveform")
+                Image(systemName: url.isVideo ? "video.fill" : url.isPhoto ? "photo.fill" : "waveform")
                     .font(.title3)
                     .foregroundStyle(Angra.goldGradient)
             }
@@ -150,23 +173,96 @@ private struct Tile: View {
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: Angra.radiusTile, style: .continuous))
         .overlay(alignment: .bottom) {
-            LinearGradient(colors: [.clear, .black.opacity(0.55)],
-                           startPoint: .center, endPoint: .bottom)
-                .frame(height: 46)
+            LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
+                .frame(height: 52)
                 .allowsHitTesting(false)
         }
+        .overlay(alignment: .topLeading) {
+            if let duration {
+                Text((url.isVideo ? "▶ " : "♪ ") + Self.clock(duration))
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(Angra.textPrimary)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(.black.opacity(0.55), in: Capsule())
+                    .padding(6)
+            }
+        }
         .overlay(alignment: .bottomLeading) {
-            Text(RecordingStore.format(RecordingStore.size(of: url)))
-                .font(.caption2.weight(.medium).monospacedDigit())
-                .foregroundStyle(Angra.textPrimary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(Self.capturedAt(url))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Angra.textPrimary)
+                Text(RecordingStore.format(RecordingStore.size(of: url)))
+                    .font(.system(size: 9).monospacedDigit())
+                    .foregroundStyle(Angra.textSecondary)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 6)
         }
         .overlay(
             RoundedRectangle(cornerRadius: Angra.radiusTile, style: .continuous)
                 .strokeBorder(Angra.gold.opacity(0.16), lineWidth: Angra.hairline)
         )
+        .task(id: url) { await load() }
     }
+
+    private func load() async {
+        if url.isPhoto {
+            thumb = UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: CGSize(width: 240, height: 240))
+            return
+        }
+        let asset = AVURLAsset(url: url)
+        if let seconds = try? await asset.load(.duration).seconds, seconds.isFinite { duration = seconds }
+        guard url.isVideo else { return }
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true   // portrait clips stay upright
+        generator.maximumSize = CGSize(width: 360, height: 360)
+        // One second in skips the black first frame some captures start with.
+        if let frame = try? await generator.image(at: CMTime(seconds: 1, preferredTimescale: 600)).image {
+            thumb = UIImage(cgImage: frame)
+        }
+    }
+
+    static func clock(_ seconds: Double) -> String {
+        let t = Int(seconds)
+        return t >= 3600 ? String(format: "%d:%02d:%02d", t / 3600, t % 3600 / 60, t % 60)
+                         : String(format: "%d:%02d", t / 60, t % 60)
+    }
+
+    /// "25 Aug, 14:09" from the VID_yyyyMMdd_HHmmss name.
+    static func capturedAt(_ url: URL) -> String {
+        let raw = url.deletingPathExtension().lastPathComponent
+            .split(separator: "_").dropFirst().prefix(2).joined(separator: "_")
+        let parser = DateFormatter()
+        parser.dateFormat = "yyyyMMdd_HHmmss"
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        guard let date = parser.date(from: raw) else { return "" }
+        return date.formatted(.dateTime.day().month(.abbreviated).hour().minute())
+    }
+}
+
+/// Copies a capture into the user's Photos library. Recordings are already HEVC
+/// .mov / HEIC — the Camera app's own formats — so Photos plays them as-is.
+private enum PhotosSaver {
+    static func save(_ url: URL) async -> String {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else {
+            return "Allow EyeofAngra to add to Photos in Settings"
+        }
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: url.isVideo ? .video : .photo, fileURL: url, options: nil)
+            }
+            return "Saved to Photos"
+        } catch {
+            return "Could not save to Photos"
+        }
+    }
+}
+
+private extension URL {
+    var isPhoto: Bool { ["jpg", "jpeg", "heic"].contains(pathExtension.lowercased()) }
+    var isVideo: Bool { ["mov", "mp4"].contains(pathExtension.lowercased()) }
 }
 
 private struct ImageViewer: View {

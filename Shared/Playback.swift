@@ -92,7 +92,7 @@ private struct RecordingRow: View {
 
     private var symbol: String {
         switch url.pathExtension {
-        case "mp4": "video.fill"
+        case "mp4", "mov": "video.fill"
         case "m4a": "waveform"
         default: "photo.fill"
         }

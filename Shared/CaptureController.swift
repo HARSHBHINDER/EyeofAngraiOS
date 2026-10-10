@@ -58,7 +58,13 @@ final class CaptureController: NSObject, ObservableObject,
 
     func startRecording() {
         guard session.isRunning, !movieOutput.isRecording else { return }
-        movieOutput.startRecording(to: RecordingStore.newFileURL(prefix: "VID", ext: "mp4"),
+        // Record the way the iPhone Camera app does: HEVC in a QuickTime .mov,
+        // falling back to H.264 on hardware without an HEVC encoder.
+        if let connection = movieOutput.connection(with: .video),
+           movieOutput.availableVideoCodecTypes.contains(.hevc) {
+            movieOutput.setOutputSettings([AVVideoCodecKey: AVVideoCodecType.hevc], for: connection)
+        }
+        movieOutput.startRecording(to: RecordingStore.newFileURL(prefix: "VID", ext: "mov"),
                                    recordingDelegate: self)
         isRecording = true
     }
@@ -67,9 +73,17 @@ final class CaptureController: NSObject, ObservableObject,
         movieOutput.stopRecording()
     }
 
+    /// Extension matching the codec chosen for the photo in flight.
+    private var photoExt = "jpg"
+
     func capturePhoto() {
         guard session.isRunning, mode == .photo else { return }
-        photoOutput.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
+        // HEIC like the Camera app when the device supports it, JPEG otherwise.
+        let heic = photoOutput.availablePhotoCodecTypes.contains(.hevc)
+        photoExt = heic ? "heic" : "jpg"
+        let settings = heic ? AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
+                            : AVCapturePhotoSettings()
+        photoOutput.capturePhoto(with: settings, delegate: self)
     }
 
     // MARK: - Session setup
@@ -156,7 +170,7 @@ final class CaptureController: NSObject, ObservableObject,
                 return
             }
             do {
-                try data.write(to: RecordingStore.newFileURL(prefix: "IMG", ext: "jpg"),
+                try data.write(to: RecordingStore.newFileURL(prefix: "IMG", ext: self.photoExt),
                                options: .atomic)
                 self.lastSavedAt = Date()
             } catch {

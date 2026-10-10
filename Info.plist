@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>EyeofAngra uses the camera to capture evidence video and photos that you explicitly start. Nothing is ever recorded without your action, and recordings never leave this device automatically.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>EyeofAngra saves a recording to your Photos library only when you tap Save to Photos. It never reads your library.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>EyeofAngra uses the microphone to record evidence audio and video sound that you explicitly start. Nothing is ever recorded without your action, and recordings never leave this device automatically.</string>
 	<key>UIBackgroundModes</key>

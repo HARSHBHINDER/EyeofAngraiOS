@@ -4,9 +4,19 @@
   "altstore_feed": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngraiOS/main/altstore.json",
   "versions": [
     {
+      "version": "1.2",
+      "date": "2026-10-10",
+      "release_tag": "latest",
+      "changes": [
+        "Records the way the iPhone Camera app does: HEVC video in .mov and HEIC photos, falling back to H.264 / JPEG on older hardware.",
+        "Save to Photos: hold any video or photo in the Vault and it goes straight into the Photos library, playable there like a Camera recording.",
+        "Vault tiles show a real frame from each video, its length, and when it was recorded; audio tiles show their length."
+      ]
+    },
+    {
       "version": "1.1",
       "date": "2026-10-09",
-      "release_tag": "latest",
+      "release_tag": null,
       "changes": [
         "Home-screen and lock-screen widgets: tap to deeplink straight into Video or Audio and arm capture automatically.",
         "Fixed: changing video quality in Settings now applies immediately, not only after switching tabs.",
@@ -17,7 +27,7 @@
     {
       "version": "1.0",
       "date": "2026-08-17",
-      "release_tag": "latest",
+      "release_tag": null,
       "changes": [
         "Five destinations: Video, Audio, Photo, Vault, and Settings.",
         "Stealth capture: video and photo black the screen out and drop the backlight to zero while recording, so the phone reads as idle. Tap anywhere to stop.",
