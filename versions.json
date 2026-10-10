@@ -4,9 +4,19 @@
   "altstore_feed": "https://raw.githubusercontent.com/HARSHBHINDER/EyeofAngraiOS/main/altstore.json",
   "versions": [
     {
-      "version": "1.4",
+      "version": "1.5",
       "date": "2026-10-10",
       "release_tag": "latest",
+      "changes": [
+        "Swipe to select: in select mode, slide sideways across tiles and every one you pass is selected; vertical movement still scrolls.",
+        "Pinch the Vault to resize it, from 1 to 7 tiles per row; your choice is remembered.",
+        "Photos-style grid: square, edge-to-edge tiles with thin gaps, length bottom-right, capture time on larger tiles, sharper thumbnails when zoomed in."
+      ]
+    },
+    {
+      "version": "1.4",
+      "date": "2026-10-10",
+      "release_tag": null,
       "changes": [
         "Auto-rotation removed: the app stays in portrait.",
         "Recordings and photos are portrait too, however the phone is held: the screen, the record button and the captures never change orientation."

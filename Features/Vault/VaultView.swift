@@ -26,11 +26,22 @@ struct VaultView: View {
     @State private var confirmBatchDelete = false
     @Namespace private var chipNamespace
 
-    private let columns = [GridItem(.adaptive(minimum: 108), spacing: 12)]
+    // Tiles per row, set by pinching and remembered; 3 matches the Photos default.
+    @AppStorage("vaultColumns") private var columns = 3
+    // Drag-select: frames of visible tiles, and the run being swept.
+    @State private var tileFrames: [URL: CGRect] = [:]
+    @State private var dragAnchor: Int?
+    @State private var dragBase: Set<URL> = []
 
     var body: some View {
         NavigationStack {
             ScrollView {
+                if !files.isEmpty {
+                    Text(selecting ? "Tap, or swipe sideways across tiles to select" : "Pinch to resize")
+                        .font(.caption2)
+                        .foregroundStyle(Angra.textTertiary)
+                        .padding(.top, 4)
+                }
                 if files.isEmpty {
                     ContentUnavailableView {
                         Label("Nothing captured yet", systemImage: "lock.shield")
@@ -39,16 +50,20 @@ struct VaultView: View {
                     }
                     .padding(.top, 72)
                 } else {
-                    LazyVGrid(columns: columns, spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: columns), spacing: 2) {
                         ForEach(files, id: \.self) { url in
-                            Tile(url: url)
+                            Tile(url: url, columns: columns)
+                                .background {
+                                    GeometryReader { g in
+                                        Color.clear.preference(key: TileFrames.self, value: [url: g.frame(in: .named("grid"))])
+                                    }
+                                }
                                 .overlay(alignment: .topTrailing) {
                                     if selecting { SelectionTick(on: selected.contains(url)) }
                                 }
                                 .overlay {
                                     if selecting && selected.contains(url) {
-                                        RoundedRectangle(cornerRadius: Angra.radiusTile, style: .continuous)
-                                            .strokeBorder(Angra.goldGradient, lineWidth: 2)
+                                        Rectangle().fill(.white.opacity(0.18))
                                     }
                                 }
                                 .onTapGesture {
@@ -70,10 +85,24 @@ struct VaultView: View {
                                 }
                         }
                     }
-                    .padding(.horizontal, 16)
                     .padding(.bottom, 24)
+                    .coordinateSpace(name: "grid")
+                    .onPreferenceChange(TileFrames.self) { tileFrames = $0 }
+                    // Sideways swipe in select mode sweeps a run of tiles, as in Photos;
+                    // vertical movement is left to the scroll view.
+                    .simultaneousGesture(selecting ? sweepGesture : nil)
                 }
             }
+            .scrollDisabled(dragAnchor != nil)
+            // Pinch steps the grid, like Photos: spread for bigger tiles, pinch for more.
+            .simultaneousGesture(
+                MagnifyGesture().onEnded { value in
+                    withAnimation(Angra.spring) {
+                        if value.magnification > 1.2, columns > 1 { columns -= 1 }
+                        else if value.magnification < 0.8, columns < 7 { columns += 1 }
+                    }
+                }
+            )
             .background(Angra.background.ignoresSafeArea())
             .navigationTitle(selecting ? "\(selected.count) selected" : "Vault")
             .safeAreaInset(edge: .top) { filterBar }
@@ -148,6 +177,27 @@ struct VaultView: View {
         } message: {
             Text("This permanently removes it from the device. Evidence cannot be recovered.")
         }
+    }
+
+    private var sweepGesture: some Gesture {
+        DragGesture(minimumDistance: 10, coordinateSpace: .named("grid"))
+            .onChanged { value in
+                if dragAnchor == nil {
+                    guard abs(value.translation.width) > abs(value.translation.height),
+                          let start = index(at: value.startLocation) else { return }
+                    dragAnchor = start
+                    dragBase = selected
+                }
+                guard let anchor = dragAnchor, let i = index(at: value.location) else { return }
+                selected = dragBase.union(files[min(anchor, i)...max(anchor, i)])
+            }
+            .onEnded { _ in dragAnchor = nil }
+    }
+
+    // ponytail: linear scan of visible tile frames; fine for a vault, index by row
+    // and column if it ever holds thousands of items.
+    private func index(at point: CGPoint) -> Int? {
+        files.firstIndex { tileFrames[$0]?.contains(point) == true }
     }
 
     private func endSelection() {
@@ -236,61 +286,68 @@ struct VaultView: View {
 
 /// Photos and videos show a real frame; audio gets a gold mark. Length and capture
 /// time ride on a scrim so the tile says what it is at a glance.
+private struct TileFrames: PreferenceKey {
+    static var defaultValue: [URL: CGRect] = [:]
+    static func reduce(value: inout [URL: CGRect], nextValue: () -> [URL: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 private struct Tile: View {
     let url: URL
+    let columns: Int
+    private var roomy: Bool { columns <= 3 }
     @State private var thumb: UIImage?
     @State private var duration: Double?
 
     var body: some View {
-        ZStack {
-            if let thumb {
-                Image(uiImage: thumb).resizable().scaledToFill()
-            } else {
-                Angra.cardGradient
-                Image(systemName: url.isVideo ? "video.fill" : url.isPhoto ? "photo.fill" : "waveform")
-                    .font(.title3)
-                    .foregroundStyle(Angra.goldGradient)
+        // A Photos-style square: edge to edge, no card chrome.
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                if let thumb {
+                    Image(uiImage: thumb).resizable().scaledToFill()
+                } else {
+                    ZStack {
+                        Angra.surface
+                        Image(systemName: url.isVideo ? "video.fill" : url.isPhoto ? "photo.fill" : "waveform")
+                            .font(roomy ? .title3 : .footnote)
+                            .foregroundStyle(Angra.goldGradient)
+                    }
+                }
             }
-        }
-        .frame(height: 108)
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: Angra.radiusTile, style: .continuous))
-        .overlay(alignment: .bottom) {
-            LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .center, endPoint: .bottom)
-                .frame(height: 52)
-                .allowsHitTesting(false)
-        }
-        .overlay(alignment: .topLeading) {
-            if let duration {
-                Text((url.isVideo ? "▶ " : "♪ ") + Self.clock(duration))
-                    .font(.caption2.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(Angra.textPrimary)
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(.black.opacity(0.55), in: Capsule())
-                    .padding(6)
+            .clipped()
+            .overlay(alignment: .bottom) {
+                if duration != nil || roomy {
+                    LinearGradient(colors: [.clear, .black.opacity(0.5)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: roomy ? 34 : 20)
+                        .allowsHitTesting(false)
+                }
             }
-        }
-        .overlay(alignment: .bottomLeading) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(Self.capturedAt(url))
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(Angra.textPrimary)
-                Text(RecordingStore.format(RecordingStore.size(of: url)))
-                    .font(.system(size: 9).monospacedDigit())
-                    .foregroundStyle(Angra.textSecondary)
+            .overlay(alignment: .bottomTrailing) {
+                if let duration {
+                    Text(Self.clock(duration))
+                        .font(.system(size: roomy ? 11 : 9, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .padding(5)
+                }
             }
-            .padding(.horizontal, 8).padding(.vertical, 6)
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: Angra.radiusTile, style: .continuous)
-                .strokeBorder(Angra.gold.opacity(0.16), lineWidth: Angra.hairline)
-        )
-        .task(id: url) { await load() }
+            .overlay(alignment: .bottomLeading) {
+                if roomy {
+                    Text(Self.capturedAt(url))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(Angra.textPrimary)
+                        .padding(5)
+                }
+            }
+            .task(id: "\(url)-\(columns <= 2)") { await load() }
     }
 
     private func load() async {
         if url.isPhoto {
-            thumb = UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: CGSize(width: 240, height: 240))
+            // Sharper decode when tiles are big; cheap when they are small.
+            let side: CGFloat = columns <= 2 ? 720 : 360
+            thumb = UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: CGSize(width: side, height: side))
             return
         }
         let asset = AVURLAsset(url: url)
@@ -298,7 +355,7 @@ private struct Tile: View {
         guard url.isVideo else { return }
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true   // portrait clips stay upright
-        generator.maximumSize = CGSize(width: 360, height: 360)
+        generator.maximumSize = columns <= 2 ? CGSize(width: 720, height: 720) : CGSize(width: 360, height: 360)
         // One second in skips the black first frame some captures start with.
         if let frame = try? await generator.image(at: CMTime(seconds: 1, preferredTimescale: 600)).image {
             thumb = UIImage(cgImage: frame)
