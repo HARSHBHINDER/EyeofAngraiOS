@@ -57,22 +57,13 @@ final class CaptureController: NSObject, ObservableObject,
         run { self.session.stopRunning() }
     }
 
-    /// The interface is locked to portrait, so read how the phone is physically held
-    /// and stamp it on the capture; a sideways recording still plays back upright.
+    /// The app is fixed in portrait, and so is every capture, however the phone is held.
     private func applyRotation(to connection: AVCaptureConnection?) {
-        guard let connection else { return }
-        let angle: CGFloat
-        switch UIDevice.current.orientation {
-        case .landscapeLeft: angle = 0
-        case .landscapeRight: angle = 180
-        case .portraitUpsideDown: angle = 270
-        default: angle = 90
-        }
-        if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
+        guard let connection, connection.isVideoRotationAngleSupported(90) else { return }
+        connection.videoRotationAngle = 90
     }
 
     func startRecording() {
-        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         applyRotation(to: movieOutput.connection(with: .video))
         guard session.isRunning, !movieOutput.isRecording else { return }
         // Record the way the iPhone Camera app does: HEVC in a QuickTime .mov,
@@ -100,7 +91,6 @@ final class CaptureController: NSObject, ObservableObject,
         photoExt = heic ? "heic" : "jpg"
         let settings = heic ? AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
                             : AVCapturePhotoSettings()
-        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         applyRotation(to: photoOutput.connection(with: .video))
         photoOutput.capturePhoto(with: settings, delegate: self)
     }

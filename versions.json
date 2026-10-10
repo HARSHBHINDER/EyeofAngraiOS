@@ -9,7 +9,7 @@
       "release_tag": "latest",
       "changes": [
         "Auto-rotation removed: the app stays in portrait.",
-        "Recordings and photos still come out the right way round: each capture is stamped with how the phone was physically held."
+        "Recordings and photos are portrait too, however the phone is held: the screen, the record button and the captures never change orientation."
       ]
     },
     {
