@@ -32,7 +32,9 @@ def download_cell(entry):
     buttons = []
     tag = entry.get("release_tag")
     if tag:
-        url = f"https://github.com/{REPO}/releases/download/{tag}/{ASSET}"
+        # CI tags releases v1.0.N, so "latest" means GitHub's newest-release redirect.
+        path = "latest/download" if tag == "latest" else f"download/{tag}"
+        url = f"https://github.com/{REPO}/releases/{path}/{ASSET}"
         buttons.append(
             f'<a href="{url}"><img src="{badge("IPA download", "2EA44F", "apple")}" alt="Download {ASSET}"></a>'
         )
